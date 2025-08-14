@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>上传小说 - AI小说阅读器</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .upload-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem auto;
+            max-width: 600px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .file-upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            margin: 1rem 0;
+            transition: all 0.3s ease;
+        }
+        .file-upload-area:hover {
+            border-color: #764ba2;
+            background: rgba(102, 126, 234, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="upload-container">
+            <h2 class="text-center mb-4">上传小说</h2>
+            
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="title" class="form-label">小说标题</label>
+                    <input type="text" class="form-control" id="title" name="title" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="author" class="form-label">作者</label>
+                    <input type="text" class="form-control" id="author" name="author" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="description" class="form-label">简介（可选）</label>
+                    <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="file" class="form-label">小说文件</label>
+                    <div class="file-upload-area" id="fileUploadArea">
+                        <p class="mb-2">点击选择文件或拖拽文件到此处</p>
+                        <p class="text-muted small">支持 TXT、DOC、DOCX 格式</p>
+                        <input type="file" class="form-control" id="file" name="file" accept=".txt,.doc,.docx" required style="display: none;">
+                    </div>
+                    <div id="fileInfo" class="mt-2" style="display: none;">
+                        <span class="badge bg-primary" id="fileName"></span>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <span id="submitText">开始上传并处理</span>
+                        <span id="loadingText" style="display: none;">
+                            <span class="spinner-border spinner-border-sm me-2"></span>处理中...
+                        </span>
+                    </button>
+                    <a href="/" class="btn btn-outline-secondary">返回首页</a>
+                </div>
+            </form>
+            
+            <div id="result" class="mt-4" style="display: none;">
+                <div class="alert alert-success">
+                    <h5>上传成功！</h5>
+                    <p id="resultMessage"></p>
+                    <a href="#" id="readLink" class="btn btn-success">开始阅读</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 文件上传处理
+        document.getElementById('fileUploadArea').addEventListener('click', function() {
+            document.getElementById('file').click();
+        });
+
+        document.getElementById('file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('fileInfo').style.display = 'block';
+            }
+        });
+
+        // 拖拽上传
+        document.getElementById('fileUploadArea').addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '#764ba2';
+            this.style.background = 'rgba(102, 126, 234, 0.1)';
+        });
+
+        document.getElementById('fileUploadArea').addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '#667eea';
+            this.style.background = 'transparent';
+        });
+
+        document.getElementById('fileUploadArea').addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '#667eea';
+            this.style.background = 'transparent';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('file').files = files;
+                document.getElementById('fileName').textContent = files[0].name;
+                document.getElementById('fileInfo').style.display = 'block';
+            }
+        });
+
+        // 表单提交
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const submitBtn = document.querySelector('button[type="submit"]');
+            const submitText = document.getElementById('submitText');
+            const loadingText = document.getElementById('loadingText');
+            
+            // 显示加载状态
+            submitBtn.disabled = true;
+            submitText.style.display = 'none';
+            loadingText.style.display = 'inline';
+            
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('resultMessage').textContent = 
+                        `成功识别 ${data.dialoguesCount} 段对话，已生成AI语音。`;
+                    document.getElementById('readLink').href = `/read/${data.novelId}`;
+                    document.getElementById('result').style.display = 'block';
+                } else {
+                    alert('上传失败：' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('上传失败，请重试');
+            })
+            .finally(() => {
+                // 恢复按钮状态
+                submitBtn.disabled = false;
+                submitText.style.display = 'inline';
+                loadingText.style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html> 
