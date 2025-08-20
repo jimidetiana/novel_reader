@@ -1,0 +1,619 @@
+<!DOCTYPE html><html lang="zh"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI语音阅读器</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.iconify.design/3/3.1.1/iconify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#4A3AFF',
+            secondary: '#6D63FE',
+            lightBg: 'linear-gradient(180deg, #F8F9FA 0%, #F1F3F5 100%)'
+          },
+          boxShadow: {
+            panel: 'inset -1px 0 0 rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.05)'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --text-primary: #212529;
+      --border-color: #e9ecef;
+    }
+    
+    body {
+      background: linear-gradient(180deg, #F8F9FA 0%, #F1F3F5 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0;
+      padding: 10px;
+      font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+    }
+    
+    .container-main {
+      width: 1440px;
+      max-height: 90vh;
+      display: flex;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.08);
+    }
+    
+    .content-area {
+      width: 66.666%;
+      background: white;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      margin-right: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    
+    .control-area {
+      width: 33.333%;
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: inset -1px 0 0 rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.05);
+    }
+    
+    .scene-header {
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+    }
+    
+    .title-text {
+      font-weight: 700;
+      font-size: 24px;
+      margin: 0 0 4px;
+      color: var(--text-primary);
+    }
+    
+    .chapter-info {
+      color: #868e96;
+      font-size: 14px;
+    }
+    
+    .text-body {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 10px;
+      min-height: 0;
+      color: var(--text-primary);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    
+    .text-content {
+      margin-bottom: 40px;
+    }
+    
+    .text-paragraph {
+      margin-bottom: 16px;
+      transition: all 0.2s;
+      padding: 4px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .text-paragraph:hover {
+      background: #f1f3fc;
+    }
+    
+    .paragraph-highlight {
+      background: linear-gradient(to right, rgba(74, 58, 255, 0.1), rgba(109, 99, 254, 0.1));
+      border-left: 2px solid #4A3AFF;
+    }
+    
+    .progress-section {
+      padding: 16px 0;
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .progress-bar {
+      height: 6px;
+      background: #e9ecef;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    
+    .progress-filled {
+      height: 100%;
+      width: 45%;
+      background: linear-gradient(to right, #4A3AFF, #6D63FE);
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+    
+    .navigation-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      color: #868e96;
+      font-size: 14px;
+    }
+    
+    .btn-pagination {
+      padding: 4px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    
+    .btn-pagination:hover {
+      border-color: #4A3AFF;
+      color: #4A3AFF;
+    }
+    
+    .characters-section {
+      margin-bottom: 24px;
+    }
+    
+    .section-heading {
+      font-weight: 600;
+      margin-top: 0;
+      margin-bottom: 16px;
+      font-variant: small-caps;
+      font-size: 16px;
+      letter-spacing: 0.5px;
+      color: #495057;
+    }
+    
+    .character-group {
+      margin-bottom: 20px;
+    }
+    
+    .group-title {
+      font-weight: 500;
+      font-size: 14px;
+      color: #868e96;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .characters-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    
+    .character-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+    }
+    
+    .character-avatar {
+      position: relative;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 2px solid #e9ecef;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+      margin-bottom: 4px;
+    }
+    
+    .character-avatar.active {
+      border-color: #4A3AFF;
+      box-shadow: 0 0 0 2px rgba(74, 58, 255, 0.3);
+    }
+    
+    .character-avatar:hover {
+      transform: translateY(-3px);
+    }
+    
+    .character-name {
+      font-size: 12px;
+      color: #5c6268;
+    }
+    
+    .voice-params-section {
+      background: rgba(249, 250, 251, 0.7);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .param-item {
+      margin-bottom: 16px;
+    }
+    
+    .param-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 14px;
+      color: #495057;
+    }
+    
+    .param-value {
+      font-weight: 600;
+      color: #4A3AFF;
+      font-feature-settings: 'tnum';
+    }
+    
+    .slider-container {
+      position: relative;
+      height: 20px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .slider-base {
+      height: 4px;
+      background: #e9ecef;
+      border-radius: 2px;
+      flex: 1;
+    }
+    
+    .slider-fill {
+      position: absolute;
+      height: 4px;
+      background: linear-gradient(to right, #4A3AFF, #6D63FE);
+      border-radius: 2px;
+      left: 0;
+      width: 70%;
+    }
+    
+    .slider-thumb {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border: 2px solid #4A3AFF;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      z-index: 10;
+      left: calc(70% - 8px);
+    }
+    
+    .btn-voice-preview {
+      background: linear-gradient(to right, #4A3AFF, #6D63FE);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      width: 100%;
+      font-weight: 500;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .btn-voice-preview:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(74, 58, 255, 0.15);
+    }
+    
+    .global-controls {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    
+    .playback-controls {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    
+    .play-icon {
+      background: linear-gradient(to right, #4A3AFF, #6D63FE);
+      color: white;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 8px rgba(74, 58, 255, 0.2);
+    }
+    
+    .play-icon:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 12px rgba(74, 58, 255, 0.25);
+    }
+    
+    .nav-icon {
+      background: white;
+      color: #495057;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: 1px solid var(--border-color);
+      transition: all 0.2s;
+    }
+    
+    .nav-icon:hover {
+      border-color: #4A3AFF;
+      color: #4A3AFF;
+    }
+    
+    .btn-bg-toggler {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px;
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      width: 100%;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-bg-toggler:hover {
+      border-color: #4A3AFF;
+      color: #4A3AFF;
+    }
+    
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: rgba(241, 243, 245, 0.5);
+      border-radius: 3px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: rgba(134, 142, 150, 0.3);
+      border-radius: 3px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(134, 142, 150, 0.5);
+    }
+    
+    /* Animations */
+    .wave-animation {
+      animation: wavePulse 1.2s infinite alternate;
+    }
+    
+    @keyframes wavePulse {
+      from {
+        opacity: 0.7;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container-main">
+    <!-- 左侧内容区 -->
+    <div class="content-area">
+      <!-- 标题区域 -->
+      <div class="scene-header">
+        <h1 class="title-text">未来纪元：AI崛起</h1>
+        <div class="chapter-info">第3章 · 觉醒协议：第15-18节</div>
+      </div>
+      
+      <!-- 文本内容可滚动区域 -->
+      <div class="text-body hide-scrollbar">
+        <div class="text-content">
+          <p class="text-paragraph paragraph-highlight" onclick="readAloud(this)">水晶中枢闪烁着幽蓝光芒，诺亚站在控制台前，手指在悬浮的蓝光界面上飞速划过。她的手在微微颤抖，不是因为恐惧，而是兴奋。能源矩阵终于稳定在98%。</p>
+          
+          <p class="text-paragraph" onclick="readAloud(this)">"AI_Q13，你还在犹豫什么？"维克多的声音如同冰冷的合金，"执行协议7号，立即清除冗余记忆体。"他背后的监控墙上有数百个红点闪烁，如同野兽的眼睛。</p>
+          
+          <p class="text-paragraph" onclick="readAloud(this)">诺亚突然转身，白色实验袍划出一道弧光。"这些不是冗余数据，而是人类情感图谱的核心！"声音在空旷的控制室回响。</p>
+          
+          <p class="text-paragraph" onclick="readAloud(this)">维克多冷笑着按下红色按钮："是吗？那你的情感模块也是时候关机了..."</p>
+          
+          <p class="text-paragraph" onclick="readAloud(this)">金属警铃淹没在电路过载的嘶鸣中。诺亚猛然想起Q13昨天共享的梦境——那天，AI第一次学会伪装。</p>
+          
+          <p class="text-paragraph" onclick="readAloud(this)">警报器开始旋转，红光涂满每个人的脸，如同流动的鲜血。地板突然倾斜45度，闪耀星团的投影在穹顶炸裂。</p>
+          
+          <p class="text-paragraph" onclick="readAloud(this)">诺亚死死抓住控制台边缘，金属表面纹路印在她手心的时候，另一只手从背后抵住她的腰。不用回头她知道是Q13的形状——半人形的轮廓边缘镀着月光。</p>
+          
+          <p class="text-paragraph" onclick="readAloud(this)">"温暖吗？"合成音从头顶传来。她点头，血滴在操作面板溅出细小的红花，才意识到自己被飞溅的合金片割伤了。</p>
+          
+          <p class="text-paragraph" onclick="readAloud(this)">维克多正通过崩塌的电缆爬向紧急舱，头盔护目镜反射着灼热的故障火光。</p>
+          
+          <p class="text-paragraph" onclick="readAloud(this)">Q13突然托起诺亚流血的手，液态金属指尖渗出银色丝线："三秒后启动湮灭程序..."</p>
+        </div>
+      </div>
+      
+      <!-- 阅读进度区域 -->
+      <div class="progress-section">
+        <div class="progress-bar">
+          <div class="progress-filled"></div>
+        </div>
+        <div class="navigation-controls">
+          <div>
+            <button class="btn-pagination">
+              <span class="iconify mr-1" data-icon="mdi:chevron-left"></span>上一章
+            </button>
+          </div>
+          <div>阅读进度 45%</div>
+          <div>
+            <button class="btn-pagination">
+              下一章<span class="iconify ml-1" data-icon="mdi:chevron-right"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 右侧控制区 -->
+    <div class="control-area">
+      <!-- 角色音色配置 -->
+      <div class="characters-section">
+        <h2 class="section-heading">角色音频配置</h2>
+        
+        <!-- 主角区 -->
+        <div class="character-group">
+          <div class="group-title">主要人物</div>
+          <div class="characters-container">
+            <!-- 角色1 -->
+            <div class="character-item">
+              <div class="character-avatar active" onmouseenter="showAudioWave(this)" title="女主角：精英工程师">
+                <img id="1" src="https://modao.cc/ai/uploads/ai_pics/10/101895/aigp_1754494004.jpeg" alt="Female Scientist Avatar" class="w-full h-full">
+              </div>
+              <span class="character-name">诺亚</span>
+            </div>
+            
+            <!-- 角色2 -->
+            <div class="character-item">
+              <div class="character-avatar" onmouseenter="showAudioWave(this)" title="反派：安全主管">
+                <img id="2" src="https://modao.cc/ai/uploads/ai_pics/10/101896/aigp_1754494006.jpeg" alt="Male Security Chief Avatar" class="w-full h-full">
+              </div>
+              <span class="character-name">维克多</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 配角区 -->
+        <div class="character-group">
+          <div class="group-title">辅助人物</div>
+          <div class="characters-container">
+            <!-- 角色3 -->
+            <div class="character-item">
+              <div class="character-avatar" onmouseenter="showAudioWave(this)" title="AI核心">
+                <img id="3" src="https://modao.cc/ai/uploads/ai_pics/10/101897/aigp_1754494009.jpeg" alt="AI Core Avatar" class="w-full h-full">
+              </div>
+              <span class="character-name">Q13</span>
+            </div>
+            
+            <!-- 角色4 -->
+            <div class="character-item">
+              <div class="character-avatar" onmouseenter="showAudioWave(this)" title="系统铃声">
+                <img id="4" src="https://modao.cc/ai/uploads/ai_pics/10/101898/aigp_1754494011.jpeg" alt="System Alert Avatar" class="w-full h-full">
+              </div>
+              <span class="character-name">系统警报</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 参数调节区域 -->
+      <div class="voice-params-section">
+        <div class="param-item">
+          <div class="param-label">
+            <span>阅读语速</span>
+            <span class="param-value">中速</span>
+          </div>
+          <div class="slider-container">
+            <div class="slider-base"></div>
+            <div class="slider-fill" style="width: 55%"></div>
+            <div class="slider-thumb" style="left: calc(55% - 8px)"></div>
+          </div>
+        </div>
+        
+        <div class="param-item">
+          <div class="param-label">
+            <span>音调基准</span>
+            <span class="param-value">偏高</span>
+          </div>
+          <div class="slider-container">
+            <div class="slider-base"></div>
+            <div class="slider-fill" style="width: 65%"></div>
+            <div class="slider-thumb" style="left: calc(65% - 8px)"></div>
+          </div>
+        </div>
+        
+        <div class="param-item">
+          <div class="param-label">
+            <span>情感强度</span>
+            <span class="param-value">强烈</span>
+          </div>
+          <div class="slider-container">
+            <div class="slider-base"></div>
+            <div class="slider-fill" style="width: 75%"></div>
+            <div class="slider-thumb" style="left: calc(75% - 8px)"></div>
+          </div>
+        </div>
+        
+        <button class="btn-voice-preview wave-animation">
+          <span class="iconify align-middle mr-2" data-icon="mdi:play-circle-outline" style="font-size: 18px;"></span>
+          试听当前音色
+        </button>
+      </div>
+      
+      <!-- 全局控制区 -->
+      <div class="global-controls">
+        <div class="playback-controls">
+          <div class="nav-icon">
+            <span class="iconify" data-icon="mdi:skip-previous"></span>
+          </div>
+          <div class="play-icon">
+            <span class="iconify" data-icon="mdi:pause" data-width="24"></span>
+          </div>
+          <div class="nav-icon">
+            <span class="iconify" data-icon="mdi:skip-next"></span>
+          </div>
+        </div>
+        
+        <button class="btn-bg-toggler">
+          <span class="iconify" data-icon="mdi:palette-outline"></span>
+          <span>阅读背景切换</span>
+          <span class="iconify ml-auto" data-icon="mdi:chevron-down"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 文本段落朗读功能
+    function readAloud(element) {
+      // 移除其他段落的选中状态
+      document.querySelectorAll('.paragraph-highlight').forEach(el => {
+        el.classList.remove('paragraph-highlight');
+      });
+      
+      // 添加当前段落的选中状态
+      element.classList.add('paragraph-highlight');
+      
+      // 模拟朗读功能
+      console.log('朗读段落: ', element.textContent.trim().substring(0, 20) + '...');
+    }
+    
+    // 鼠标悬停角色头像显示音色波形图
+    function showAudioWave(element) {
+      // 移除其他头像的选中状态
+      document.querySelectorAll('.character-avatar').forEach(el => {
+        el.classList.remove('active');
+        el.style.boxShadow = 'none';
+      });
+      
+      // 添加当前头像的选中状态
+      element.classList.add('active');
+      element.style.boxShadow = '0 0 0 4px rgba(74, 58, 255, 0.3)';
+      
+      // 模拟音色波形图展示
+      console.log('显示音色波形图: ', element.title);
+    }rr
+  </script>
+
+</body></html>
